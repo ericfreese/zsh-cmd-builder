@@ -1,0 +1,37 @@
+#!/usr/bin/env zsh
+builder_git_log_setup() {
+  typeset -ga SWITCHES OPTIONS
+
+  SWITCHES=(b g o r)
+  OPTIONS=(n)
+
+  builder_git_log_build() {
+    typeset -ga SELECTED_SWITCHES
+    typeset -gA SELECTED_OPTIONS
+    typeset -g REPLY
+
+    local -a parts
+    local switch option
+
+    parts+=('git log')
+
+    for switch in $SELECTED_SWITCHES; do
+      case $switch in
+        (b) parts+=('--branches');;
+        (g) parts+=('--graph');;
+        (o) parts+=('--oneline');;
+        (r) parts+=('--reflog');;
+      esac
+    done
+
+    for option in ${(k)SELECTED_OPTIONS}; do
+      case $option in
+        n) parts+=("-n $SELECTED_OPTIONS[$option]");;
+      esac
+    done
+
+    REPLY="${(j: :)parts}"
+  }
+}
+
+builder_git_log_setup "$*"

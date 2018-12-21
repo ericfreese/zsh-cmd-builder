@@ -1,0 +1,82 @@
+#!/usr/bin/env zsh
+
+typeset -gaU cmd_builders
+
+builderinit() {
+  autoload -Uz read-from-minibuffer
+
+  _builder_render() {
+    typeset -g BUILDER
+
+    builder_${BUILDER}_build
+    BUFFER="$REPLY"
+    zle end-of-line
+    zle -R
+  }
+
+  builder-build() {
+    local BUILDER="$1"
+    local -aU SWITCHES OPTIONS
+    local -aU SELECTED_SWITCHES
+    local -AU SELECTED_OPTIONS
+    local index
+
+    local -A SELECTED
+
+    autoload -Uz builder_${BUILDER}_setup
+    builder_${BUILDER}_setup
+
+    _builder_render
+
+    local search input opt
+    local done=0
+
+    while ((! done)); do
+      zle -R "$BUILDER switches: $SWITCHES, options: $OPTIONS"
+
+      while [[ ${SWITCHES[(i)$search*]} -le $#SWITCHES ]] && [[ ${OPTIONS[(i)$search*]} -le $#OPTIONS ]]; do
+        read -sk input
+
+        if [[ $input == ($'\r'|$'\n') ]]; then
+          done=1
+          break
+        fi
+
+        search="$search$input"
+
+        # De-select if it's already selected
+        index=$SELECTED_SWITCHES[(ie)$search]
+        if [[ $index -le $#SELECTED_SWITCHES ]]; then
+          SELECTED_SWITCHES[$index]=()
+          break
+        elif [[ -n "$SELECTED_OPTIONS[$search]" ]]; then
+          unset "SELECTED_OPTIONS[$search]"
+          break
+        fi
+
+        # Select it if it hasn't been selected yet
+        index=${SWITCHES[(ie)$search]}
+        if [[ $index -le $#SWITCHES ]]; then
+          SELECTED_SWITCHES+=($SWITCHES[$index])
+          break
+        else
+          index=${OPTIONS[(ie)$search]}
+          if [[ $index -le $#OPTIONS ]]; then
+            zle read-from-minibuffer
+            ((! $?)) && SELECTED_OPTIONS[$search]="$REPLY"
+            break
+          fi
+        fi
+      done
+
+      search=
+
+      _builder_render
+    done
+  }
+
+  zle -N read-from-minibuffer
+  zle -N builder-build
+}
+
+builderinit "$*"
